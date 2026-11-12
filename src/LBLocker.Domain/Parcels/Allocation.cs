@@ -2,7 +2,7 @@ namespace LBLocker.Domain.Parcels;
 
 /// <summary>
 /// Represents a reservation of one compartment for one parcel.
-/// The allocation has its own lifecycle, separate from the parcel lifecycle.
+/// Allocation expiry and physical compartment release are separate events.
 /// </summary>
 public sealed class Allocation
 {
@@ -41,6 +41,12 @@ public sealed class Allocation
     public DateTimeOffset? ReleasedAt { get; private set; }
     public AllocationStatus Status { get; private set; }
 
+    /// <summary>
+    /// True only when the compartment release has been confirmed.
+    /// An expired allocation may still occupy its compartment until released.
+    /// </summary>
+    public bool IsReleased => ReleasedAt.HasValue;
+
     public void MarkExpired(DateTimeOffset occurredAt)
     {
         if (Status != AllocationStatus.Active)
@@ -54,13 +60,17 @@ public sealed class Allocation
 
     public void MarkReleased(DateTimeOffset releasedAt)
     {
-        if (Status == AllocationStatus.Released)
+        if (IsReleased)
             throw new InvalidOperationException("Allocation has already been released.");
 
         if (releasedAt < AllocatedAt)
             throw new ArgumentException("Release time cannot be earlier than allocation time.", nameof(releasedAt));
 
         ReleasedAt = releasedAt;
-        Status = AllocationStatus.Released;
+
+        // Preserve Expired as the business outcome when an expired allocation
+        // is subsequently released at the locker.
+        if (Status == AllocationStatus.Active)
+            Status = AllocationStatus.Released;
     }
 }
