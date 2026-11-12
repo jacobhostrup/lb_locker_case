@@ -17,6 +17,7 @@ public sealed record ParcelImportResult(
     int RowsRead,
     int ParcelsCreated,
     int DuplicateEventsSkipped,
-    int ExistingParcelsSkipped,
+    int ParcelsUpdated,
+    int NoChangesSkipped,
     int IncompleteRowsSkipped,
     IReadOnlyList<ParcelImportItemResult> Items);
