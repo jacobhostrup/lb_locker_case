@@ -40,8 +40,12 @@ public sealed class Parcel
 
     public IReadOnlyCollection<Allocation> Allocations => _allocations.AsReadOnly();
 
+    /// <summary>
+    /// Returns the allocation whose compartment has not yet been confirmed released.
+    /// An expired allocation remains current until its release is confirmed.
+    /// </summary>
     public Allocation? CurrentAllocation =>
-        _allocations.LastOrDefault(allocation => allocation.Status != AllocationStatus.Released);
+        _allocations.LastOrDefault(allocation => !allocation.IsReleased);
 
     public static Parcel Register(
         string externalParcelId,
@@ -49,12 +53,7 @@ public sealed class Parcel
         ParcelSize size,
         DateTimeOffset registeredAt)
     {
-        return new Parcel(
-            Guid.NewGuid(),
-            externalParcelId,
-            recipientId,
-            size,
-            registeredAt);
+        return new Parcel(Guid.NewGuid(), externalParcelId, recipientId, size, registeredAt);
     }
 
     public void AcceptAtDepot()
@@ -79,15 +78,9 @@ public sealed class Parcel
             throw new InvalidOperationException("An allocation can only be added while the parcel is in transit.");
 
         if (CurrentAllocation is not null)
-            throw new InvalidOperationException("The parcel already has an unreleased allocation.");
+            throw new InvalidOperationException("The parcel already has an allocation whose compartment has not been released.");
 
-        var allocation = new Allocation(
-            Guid.NewGuid(),
-            lockerId,
-            compartmentId,
-            allocatedAt,
-            expiresAt);
-
+        var allocation = new Allocation(Guid.NewGuid(), lockerId, compartmentId, allocatedAt, expiresAt);
         _allocations.Add(allocation);
         return allocation;
     }
@@ -97,7 +90,7 @@ public sealed class Parcel
         EnsureStatus(ParcelStatus.InTransit);
         var allocation = GetAllocation(allocationId);
 
-        if (allocation.Status != AllocationStatus.Active)
+        if (allocation.Status != AllocationStatus.Active || allocation.IsReleased)
             throw new InvalidOperationException("The parcel requires an active allocation to become available for pickup.");
 
         Status = ParcelStatus.AvailableForPickup;
@@ -109,6 +102,20 @@ public sealed class Parcel
         Status = ParcelStatus.PickedUp;
     }
 
+    public void MarkAllocationExpired(Guid allocationId, DateTimeOffset occurredAt)
+    {
+        EnsureStatus(ParcelStatus.AvailableForPickup);
+        var allocation = GetAllocation(allocationId);
+        allocation.MarkExpired(occurredAt);
+        Status = ParcelStatus.ReturnPending;
+    }
+
+    public void MarkAllocationReleased(Guid allocationId, DateTimeOffset releasedAt)
+    {
+        var allocation = GetAllocation(allocationId);
+        allocation.MarkReleased(releasedAt);
+    }
+
     public void MarkReturnPending()
     {
         EnsureStatus(ParcelStatus.AvailableForPickup);
@@ -118,6 +125,10 @@ public sealed class Parcel
     public void MarkReturnedToSender()
     {
         EnsureStatus(ParcelStatus.ReturnPending);
+
+        if (CurrentAllocation is not null)
+            throw new InvalidOperationException("The locker allocation must be released before the parcel can be marked returned.");
+
         Status = ParcelStatus.ReturnedToSender;
     }
 
