@@ -26,4 +26,7 @@ public sealed class NotificationDispatchRecord
     public DateTimeOffset AttemptedAt { get; set; }
     public string? ExternalDispatchId { get; set; }
     public string? ErrorCode { get; set; }
+    public int? HttpStatusCode { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string? ResponseBody { get; set; }
 }
