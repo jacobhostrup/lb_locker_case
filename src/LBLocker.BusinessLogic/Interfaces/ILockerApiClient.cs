@@ -29,6 +29,6 @@ public interface ILockerApiClient
         string lockerId,
         string compartmentId,
         string externalParcelId,
-        string reason,
+        CompartmentReleaseReason reason,
         CancellationToken cancellationToken = default);
 }
