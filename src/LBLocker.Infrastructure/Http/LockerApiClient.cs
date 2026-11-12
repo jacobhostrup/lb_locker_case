@@ -68,7 +68,7 @@ public sealed class LockerApiClient(HttpClient httpClient) : ILockerApiClient
         using var response = await httpClient.PostAsJsonAsync(
             $"lockers/{Uri.EscapeDataString(lockerId)}/allocations",
             request, JsonOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, "Allocate compartment", cancellationToken);
 
         var result = await response.Content.ReadFromJsonAsync<AllocationResponseDto>(
             JsonOptions, cancellationToken)
@@ -109,7 +109,19 @@ public sealed class LockerApiClient(HttpClient httpClient) : ILockerApiClient
         using var response = await httpClient.PostAsJsonAsync(
             $"lockers/{Uri.EscapeDataString(lockerId)}/compartments/{Uri.EscapeDataString(compartmentId)}/release",
             request, JsonOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, "Release compartment", cancellationToken);
+    }
+
+    private static async Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        string operation,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+            return;
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new LockerApiException(operation, response.StatusCode, response.ReasonPhrase, body);
     }
 
     private static CompartmentInfo Map(CompartmentDto item) =>
