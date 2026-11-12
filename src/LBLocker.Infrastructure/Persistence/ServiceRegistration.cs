@@ -1,4 +1,5 @@
 using LBLocker.BusinessLogic.Interfaces;
+using LBLocker.Infrastructure.FileImport;
 using LBLocker.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,7 @@ public static class ServiceRegistration
             options.UseSqlite($"Data Source={databasePath}"));
 
         services.AddScoped<IParcelRepository, ParcelRepository>();
+        services.AddScoped<IParcelFileReader, CsvParcelFileReader>();
         return services;
     }
 }
