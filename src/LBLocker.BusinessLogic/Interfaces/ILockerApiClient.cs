@@ -22,7 +22,7 @@ public interface ILockerApiClient
         string externalParcelId,
         ParcelSize sizeRequired,
         string recipientId,
-        string pinCode,
+        string? pinCode = null,
         CancellationToken cancellationToken = default);
 
     Task ReleaseCompartmentAsync(
