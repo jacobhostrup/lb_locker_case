@@ -1,13 +1,13 @@
 namespace LBLocker.Infrastructure.Persistence.Entities;
 
 /// <summary>
-/// Contact details for one concrete parcel. The external recipient ID is used
-/// as the stable key because the source system supplies it on each import.
-/// Personal fields are cleared by the retention process; the non-personal key
-/// remains to preserve referential integrity.
+/// Contact details belong to one concrete parcel, not to a reusable person
+/// profile. Personal fields are cleared by the retention process while the
+/// non-personal row identity preserves referential integrity.
 /// </summary>
 public sealed class RecipientRecord
 {
+    public Guid ParcelId { get; set; }
     public string ExternalRecipientId { get; set; } = null!;
     public string Name { get; set; } = null!;
     public string? PhoneNumber { get; set; }
