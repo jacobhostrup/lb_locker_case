@@ -152,6 +152,11 @@ internal sealed class ConsoleApplication(IServiceProvider services)
         var recipients = await db.Recipients.AsNoTracking().ToDictionaryAsync(x => x.ParcelId);
         var credentials = await db.AllocationCredentials.AsNoTracking().ToListAsync();
         var dispatches = await db.NotificationDispatches.AsNoTracking().ToListAsync();
+        var invalidDestinationParcelIds = (await db.ParcelEvents.AsNoTracking()
+            .Where(x => x.EventType == "ReturnedToSenderInvalidDestination")
+            .Select(x => x.ParcelId)
+            .Distinct()
+            .ToListAsync()).ToHashSet();
         Console.WriteLine("\\nPARCEL OVERVIEW - ONE ROW PER PARCEL");
         Console.WriteLine(new string('=', 145));
         Console.WriteLine($"{"Parcel ID",-18} {"Recipient",-20} {"PIN",-12} {"Compartment",-28} {"SMS",-12} {"E-mail",-12} {"Final status",-25}");
@@ -172,7 +177,9 @@ internal sealed class ConsoleApplication(IServiceProvider services)
                 : dispatches.Where(x => x.AllocationId == allocation.Id).ToList();
             var smsStatus = FormatChannelStatus(allocationDispatches, NotificationChannel.Sms);
             var emailStatus = FormatChannelStatus(allocationDispatches, NotificationChannel.Email);
-            var finalStatus = GetFinalStatus(parcel.Status, allocation, pinCreated, allocationDispatches);
+            var finalStatus = invalidDestinationParcelIds.Contains(parcel.Id)
+                ? "Returned - invalid destination"
+                : GetFinalStatus(parcel.Status, allocation, pinCreated, allocationDispatches);
             var compartment = allocation is null
                 ? "—"
                 : $"{allocation.LockerId} / {allocation.CompartmentId}";
