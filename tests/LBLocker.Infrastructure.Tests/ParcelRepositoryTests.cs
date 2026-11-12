@@ -2,6 +2,7 @@ using LBLocker.BusinessLogic.Contracts;
 using LBLocker.Domain.Parcels;
 using LBLocker.Infrastructure.Persistence;
 using LBLocker.Infrastructure.Persistence.Repositories;
+using LBLocker.Infrastructure.Persistence.Entities;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -89,7 +90,7 @@ public sealed class ParcelRepositoryTests
         Assert.Single(await db.Parcels.ToListAsync());
         Assert.Single(await db.Recipients.ToListAsync());
         var importedEvent = await db.ImportedEvents.SingleAsync();
-        Assert.Equal(Entities.ImportedEventStatus.Processed, importedEvent.Status);
+        Assert.Equal(ImportedEventStatus.Processed, importedEvent.Status);
     }
 
     private static ParcelImportRecord Record(string eventId, string parcelId, ParcelSize? size) =>
