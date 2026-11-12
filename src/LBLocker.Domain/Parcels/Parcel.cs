@@ -136,6 +136,21 @@ public sealed class Parcel
         Status = ParcelStatus.ReturnedToSender;
     }
 
+    /// <summary>
+    /// Returns a parcel to its sender when the sender supplied no valid
+    /// delivery destination. No locker allocation may be active.
+    /// </summary>
+    public void ReturnToSenderDueToInvalidDestination()
+    {
+        if (Status is ParcelStatus.PickedUp or ParcelStatus.ReturnedToSender)
+            throw new InvalidOperationException($"Parcel cannot be returned from status '{Status}'.");
+
+        if (CurrentAllocation is not null)
+            throw new InvalidOperationException("The locker allocation must be released before returning the parcel to sender.");
+
+        Status = ParcelStatus.ReturnedToSender;
+    }
+
     public void ApplyImportedSnapshot(ParcelSize size, string? targetLockerId)
     {
         Size = size;
