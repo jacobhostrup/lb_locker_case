@@ -28,33 +28,37 @@ public sealed class ParcelRepository(LockerDbContext dbContext) : IParcelReposit
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        if (await dbContext.ImportedEvents.AnyAsync(
-                x => x.EventId == record.EventId, cancellationToken))
-        {
+        var importedEvent = await dbContext.ImportedEvents
+            .SingleOrDefaultAsync(x => x.EventId == record.EventId, cancellationToken);
+
+        // Successfully processed events are idempotent. Rejected events may be
+        // retried if a corrected source row with the same EventId is supplied.
+        if (importedEvent?.Status == ImportedEventStatus.Processed)
             return ImportRecordDisposition.DuplicateEventSkipped;
-        }
 
         var isValid = !string.IsNullOrWhiteSpace(record.ExternalParcelId)
             && !string.IsNullOrWhiteSpace(record.RecipientId)
             && record.Size.HasValue;
 
         var now = DateTimeOffset.UtcNow;
-        var importedEvent = new ImportedEventRecord
+        importedEvent ??= new ImportedEventRecord
         {
             Id = Guid.NewGuid(),
             EventId = record.EventId,
-            ImportedAt = now,
-            Status = isValid ? ImportedEventStatus.Processed : ImportedEventStatus.Rejected,
-            ProcessedAt = isValid ? now : null,
-            FailureReason = isValid ? null : "Missing parcel ID, recipient ID or parcel size.",
-            ParcelExternalId = string.IsNullOrWhiteSpace(record.ExternalParcelId)
-                ? null
-                : record.ExternalParcelId
+            ImportedAt = now
         };
+        importedEvent.Status = isValid ? ImportedEventStatus.Processed : ImportedEventStatus.Rejected;
+        importedEvent.ProcessedAt = isValid ? now : null;
+        importedEvent.FailureReason = isValid ? null : "Missing parcel ID, recipient ID or parcel size.";
+        importedEvent.ParcelExternalId = string.IsNullOrWhiteSpace(record.ExternalParcelId)
+            ? null
+            : record.ExternalParcelId;
 
         if (!isValid)
         {
-            dbContext.ImportedEvents.Add(importedEvent);
+            if (dbContext.Entry(importedEvent).State == EntityState.Detached)
+                if (dbContext.Entry(importedEvent).State == EntityState.Detached)
+                dbContext.ImportedEvents.Add(importedEvent);
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return ImportRecordDisposition.IncompleteRowRejected;
@@ -91,7 +95,8 @@ public sealed class ParcelRepository(LockerDbContext dbContext) : IParcelReposit
         });
 
         importedEvent.ParcelExternalId = parcel.ExternalParcelId;
-        dbContext.ImportedEvents.Add(importedEvent);
+        if (dbContext.Entry(importedEvent).State == EntityState.Detached)
+            dbContext.ImportedEvents.Add(importedEvent);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
