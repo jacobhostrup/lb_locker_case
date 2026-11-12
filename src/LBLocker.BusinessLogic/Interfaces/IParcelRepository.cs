@@ -17,6 +17,18 @@ public interface IParcelRepository
         ParcelImportRecord record,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Appends an immutable business-process event to the parcel history.
+    /// Event types should describe a completed action or a failed attempt.
+    /// </summary>
+    Task RecordEventAsync(
+        Guid parcelId,
+        string eventType,
+        DateTimeOffset occurredAt,
+        string? description = null,
+        Guid? correlationId = null,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(
         Parcel parcel,
         CancellationToken cancellationToken = default);
