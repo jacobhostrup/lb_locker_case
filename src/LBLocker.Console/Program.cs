@@ -116,6 +116,7 @@ internal sealed class ConsoleApplication(IServiceProvider services)
             Console.WriteLine("1. Parcel overview");
             Console.WriteLine("2. Import parcels from CSV");
             Console.WriteLine("3. Import history");
+            Console.WriteLine("4. Process / reprocess parcel");
             Console.WriteLine("0. Exit");
             Console.Write("\nSelect: ");
 
@@ -129,6 +130,8 @@ internal sealed class ConsoleApplication(IServiceProvider services)
                 await ImportCsvAsync();
             else if (choice == "3")
                 await ShowImportHistoryAsync();
+            else if (choice == "4")
+                await ProcessParcelAsync();
         }
     }
 
@@ -300,6 +303,41 @@ internal sealed class ConsoleApplication(IServiceProvider services)
         Console.WriteLine("\nEVENT HISTORY");
         foreach (var item in history)
             Console.WriteLine($"  {item.OccurredAt:O} | {item.EventType} | {item.Description ?? "—"} | Correlation: {item.CorrelationId?.ToString() ?? "—"}");
+
+        Pause();
+    }
+
+    private async Task ProcessParcelAsync()
+    {
+        await using var scope = services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<LockerDbContext>();
+        var parcels = await db.Parcels.AsNoTracking()
+            .OrderBy(x => x.ExternalParcelId)
+            .ToListAsync();
+
+        Console.WriteLine("\\nPARCELS AVAILABLE FOR PROCESSING / REPROCESSING");
+        Console.WriteLine(new string('-', 90));
+        Console.WriteLine($"{"Parcel ID",-24} {"Status",-22} {"Requested locker",-24} {"Size",-8}");
+        Console.WriteLine(new string('-', 90));
+        foreach (var parcel in parcels)
+            Console.WriteLine($"{Clip(parcel.ExternalParcelId, 24),-24} {parcel.Status,-22} {Clip(parcel.TargetLockerId ?? "MISSING", 24),-24} {parcel.Size,-8}");
+
+        Console.Write("\\nEnter Parcel ID to process or reprocess (blank to cancel): ");
+        var parcelId = Console.ReadLine()?.Trim();
+        if (string.IsNullOrWhiteSpace(parcelId))
+            return;
+
+        try
+        {
+            var processor = scope.ServiceProvider.GetRequiredService<
+                LBLocker.Infrastructure.Processing.ParcelProcessingService>();
+            await processor.ProcessAsync(parcelId);
+            Console.WriteLine("Processing run completed. Check parcel details for individual step results.");
+        }
+        catch (Exception exception)
+        {
+            WriteError($"Processing stopped: {exception.Message}");
+        }
 
         Pause();
     }
