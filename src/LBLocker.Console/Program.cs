@@ -121,7 +121,7 @@ internal sealed class ConsoleApplication(IServiceProvider services)
             var compartmentStatus = allocation is null
                 ? "Not booked"
                 : allocation.IsReleased ? "Released" : "Booked";
-            var allocationDispatches = allocation is null
+            List<NotificationDispatchRecord> allocationDispatches = allocation is null
                 ? []
                 : dispatches.Where(x => x.AllocationId == allocation.Id).ToList();
             var smsStatus = FormatChannelStatus(allocationDispatches, NotificationChannel.Sms);
