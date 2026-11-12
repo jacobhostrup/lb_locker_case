@@ -480,6 +480,19 @@ internal sealed class ConsoleApplication(IServiceProvider services)
             }
             await db.SaveChangesAsync();
 
+            // Revisit only parcels already flagged for invalid-destination return.
+            // This recovers older ReturnPending records without touching expiry returns.
+            var invalidDestinationReturnIds = await db.ParcelEvents
+                .Where(x => x.EventType == "ReturnToSenderRequiredInvalidDestination" ||
+                            x.EventType == "ReturnedToSenderInvalidDestination")
+                .Join(db.Parcels, e => e.ParcelId, p => p.Id, (e, p) => new { e.ParcelId, p.ExternalParcelId, p.Status })
+                .Where(x => x.Status == ParcelStatus.ReturnPending)
+                .Select(x => x.ExternalParcelId)
+                .Distinct()
+                .ToListAsync();
+            readyParcelIds.AddRange(invalidDestinationReturnIds);
+            readyParcelIds = readyParcelIds.Distinct(StringComparer.Ordinal).ToList();
+
             var processed = 0;
             var processingFailures = new List<string>();
             var processor = scope.ServiceProvider.GetRequiredService<
