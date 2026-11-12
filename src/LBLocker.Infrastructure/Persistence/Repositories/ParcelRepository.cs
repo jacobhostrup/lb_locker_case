@@ -39,9 +39,7 @@ public sealed class ParcelRepository(LockerDbContext dbContext) : IParcelReposit
         var isValid = !string.IsNullOrWhiteSpace(record.ExternalParcelId)
             && !string.IsNullOrWhiteSpace(record.RecipientId)
             && record.Size.HasValue
-            && !string.IsNullOrWhiteSpace(record.RecipientName)
-            && (!string.IsNullOrWhiteSpace(record.RecipientPhone)
-                || !string.IsNullOrWhiteSpace(record.RecipientEmail));
+            && !string.IsNullOrWhiteSpace(record.RecipientName);
 
         var now = DateTimeOffset.UtcNow;
         importedEvent ??= new ImportedEventRecord
@@ -88,7 +86,7 @@ public sealed class ParcelRepository(LockerDbContext dbContext) : IParcelReposit
                 }
             }
 
-            TrackChange("RecipientId", existingParcel.RecipientId, record.RecipientId);
+            TrackChange("RecipientId", recipient?.ExternalRecipientId, record.RecipientId);
             TrackChange("RecipientName", recipient?.Name, record.RecipientName);
             TrackChange("RecipientPhone", recipient?.PhoneNumber, record.RecipientPhone);
             TrackChange("RecipientEmail", recipient?.Email, record.RecipientEmail);
