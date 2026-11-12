@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace LBLocker.Infrastructure.Http;
 
 public sealed class LockerApiException : HttpRequestException
