@@ -194,10 +194,33 @@ public sealed class ParcelProcessingService(
     private async Task ReturnForInvalidDestinationAsync(
         Parcel parcel, string reason, CancellationToken cancellationToken)
     {
-        parcel.MarkReturnPendingDueToInvalidDestination();
+        // An earlier run may already have placed this specific invalid-destination
+        // case in ReturnPending. Do not alter ordinary expiry-related returns.
+        var alreadyFlagged = await db.ParcelEvents.AnyAsync(x =>
+            x.ParcelId == parcel.Id &&
+            (x.EventType == "ReturnToSenderRequiredInvalidDestination" ||
+             x.EventType == "ReturnedToSenderInvalidDestination"),
+            cancellationToken);
+
+        if (parcel.Status == ParcelStatus.ReturnPending)
+        {
+            if (!alreadyFlagged)
+                throw new InvalidOperationException(
+                    "Parcel is already pending return for another reason; invalid-destination handling will not override it.");
+        }
+        else
+        {
+            parcel.MarkReturnPendingDueToInvalidDestination();
+            await db.SaveChangesAsync(cancellationToken);
+            await AddEventAsync(parcel.Id, "ReturnToSenderRequiredInvalidDestination",
+                $"Return initiated because the sender supplied an invalid destination. {reason} Responsibility for providing a valid recipient delivery destination rests with the sender.",
+                null, cancellationToken);
+        }
+
+        parcel.MarkReturnedToSender();
         await db.SaveChangesAsync(cancellationToken);
-        await AddEventAsync(parcel.Id, "ReturnToSenderRequiredInvalidDestination",
-            $"Parcel marked for return to sender. {reason} Responsibility for providing a valid recipient delivery destination rests with the sender.",
+        await AddEventAsync(parcel.Id, "ParcelReturnedToSender",
+            "Parcel status finalized as ReturnedToSender due to invalid sender-provided destination. Physical return logistics must be handled by depot operations.",
             null, cancellationToken);
     }
 
