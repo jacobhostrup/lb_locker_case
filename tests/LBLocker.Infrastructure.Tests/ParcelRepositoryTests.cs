@@ -106,4 +106,46 @@ public sealed class ParcelRepositoryTests
             "RETAILER-1",
             "LOCKER-1",
             size);
+
+    [Fact]
+    public async Task RecordEventAsync_ShouldAppendEventWithCorrelationId()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<LockerDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var db = new LockerDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+        var repository = new ParcelRepository(db);
+
+        var record = Record("EVT-1", "PARCEL-1", ParcelSize.Medium);
+        await repository.ProcessImportRecordAsync(record);
+        var parcel = await db.Parcels.SingleAsync();
+        var correlationId = Guid.NewGuid();
+        var occurredAt = DateTimeOffset.UtcNow;
+
+        await repository.RecordEventAsync(
+            parcel.Id,
+            "LockerAllocationFailed",
+            occurredAt,
+            "No suitable compartment was available.",
+            correlationId);
+
+        var events = await db.ParcelEvents
+            .Where(x => x.ParcelId == parcel.Id)
+            .OrderBy(x => x.OccurredAt)
+            .ToListAsync();
+
+        Assert.Equal(2, events.Count);
+        Assert.Equal("ParcelRegistered", events[0].EventType);
+        Assert.Equal("LockerAllocationFailed", events[1].EventType);
+        Assert.Equal(correlationId, events[1].CorrelationId);
+        Assert.Equal("No suitable compartment was available.", events[1].Description);
+        Assert.Equal(occurredAt, events[1].OccurredAt);
+        Assert.NotEqual(default, events[1].RecordedAt);
+    }
+
 }
