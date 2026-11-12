@@ -16,8 +16,20 @@ public sealed class PinCredentialProtector
     {
         var encodedKey = Environment.GetEnvironmentVariable("LBLOCKER_PIN_ENCRYPTION_KEY");
         if (string.IsNullOrWhiteSpace(encodedKey))
+        {
+#if DEBUG
+            // DEMO ONLY: "Jacob" is deliberately hard-coded so reviewers can see
+            // how key management must NOT be done. Never ship this in production.
+            // Release builds require LBLOCKER_PIN_ENCRYPTION_KEY instead.
+            Console.Error.WriteLine(
+                "WARNING: Using the hard-coded DEMO PIN key. This is insecure and DEBUG-only.");
+            _key = SHA256.HashData(Encoding.UTF8.GetBytes("Jacob"));
+            return;
+#else
             throw new InvalidOperationException(
                 "PIN encryption is not configured. Set LBLOCKER_PIN_ENCRYPTION_KEY to a base64-encoded 32-byte key.");
+#endif
+        }
 
         try
         {
