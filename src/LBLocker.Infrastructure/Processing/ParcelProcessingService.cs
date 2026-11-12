@@ -7,6 +7,8 @@ using LBLocker.Infrastructure.Persistence;
 using LBLocker.Infrastructure.Persistence.Entities;
 using LBLocker.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
+using ApiNotificationChannel = LBLocker.BusinessLogic.Contracts.NotificationChannel;
+using EntityNotificationChannel = LBLocker.Infrastructure.Persistence.Entities.NotificationChannel;
 
 namespace LBLocker.Infrastructure.Processing;
 
@@ -41,6 +43,9 @@ public sealed class ParcelProcessingService(
         if (parcel.Status == ParcelStatus.Registered)
         {
             parcel.AcceptAtDepot();
+        }
+        if (parcel.Status == ParcelStatus.AcceptedAtDepot)
+        {
             parcel.MarkInTransit();
             await db.SaveChangesAsync(cancellationToken);
             await AddEventAsync(parcel.Id, "ParcelReadyForLockerProcessing",
@@ -119,17 +124,17 @@ public sealed class ParcelProcessingService(
 
         if (!string.IsNullOrWhiteSpace(recipient.PhoneNumber))
             await SendChannelAsync(parcel, recipient, allocation, storedPin, locker.Address,
-                NotificationChannel.Sms, cancellationToken);
+                ApiNotificationChannel.Sms, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(recipient.Email))
             await SendChannelAsync(parcel, recipient, allocation, storedPin, locker.Address,
-                NotificationChannel.Email, cancellationToken);
+                ApiNotificationChannel.Email, cancellationToken);
 
         var dispatches = await db.NotificationDispatches
             .Where(x => x.AllocationId == allocation.Id).ToListAsync(cancellationToken);
-        var smsAccepted = dispatches.Any(x => x.Channel == Persistence.Entities.NotificationChannel.Sms &&
+        var smsAccepted = dispatches.Any(x => x.Channel == EntityNotificationChannel.Sms &&
             x.Status == NotificationDispatchStatus.Accepted);
-        var emailAccepted = dispatches.Any(x => x.Channel == Persistence.Entities.NotificationChannel.Email &&
+        var emailAccepted = dispatches.Any(x => x.Channel == EntityNotificationChannel.Email &&
             x.Status == NotificationDispatchStatus.Accepted);
 
         if (smsAccepted || emailAccepted)
@@ -151,7 +156,7 @@ public sealed class ParcelProcessingService(
 
     private async Task SendChannelAsync(
         Parcel parcel, RecipientRecord recipient, Allocation allocation, string pin,
-        string lockerAddress, NotificationChannel channel, CancellationToken cancellationToken)
+        string lockerAddress, ApiNotificationChannel channel, CancellationToken cancellationToken)
     {
         var persistedChannel = channel == NotificationChannel.Sms
             ? Persistence.Entities.NotificationChannel.Sms
@@ -165,7 +170,7 @@ public sealed class ParcelProcessingService(
 
         var correlationId = Guid.NewGuid();
         var attempt = await StartAttemptAsync(parcel.Id, correlationId,
-            channel == NotificationChannel.Sms ? ProcessStep.SendSms : ProcessStep.SendEmail,
+            channel == ApiNotificationChannel.Sms ? ProcessStep.SendSms : ProcessStep.SendEmail,
             cancellationToken);
         var attemptRecord = new NotificationDispatchRecord
         {
