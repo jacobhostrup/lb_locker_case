@@ -142,8 +142,10 @@ internal sealed class ConsoleApplication(IServiceProvider services)
     private static string Display(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "(empty)" : value;
 
-    private static string Csv(string value) =>
-        $""{value.Replace(""", """")}"";
+    private static string Csv(string value)
+    {
+        return "\"" + value.Replace("\"", "\"\"") + "\"";
+    }
 
     private static void WriteError(string message)
     {
