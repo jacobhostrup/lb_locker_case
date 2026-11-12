@@ -126,6 +126,21 @@ public sealed class Parcel
         Status = ParcelStatus.ReturnPending;
     }
 
+    /// <summary>
+    /// Marks a depot parcel for return when the sender supplied no valid
+    /// destination locker. This is a sender-data failure, not a capacity issue.
+    /// </summary>
+    public void MarkReturnPendingDueToInvalidDestination()
+    {
+        if (Status is not (ParcelStatus.AcceptedAtDepot or ParcelStatus.InTransit))
+            throw new InvalidOperationException(
+                $"A parcel can only be returned for an invalid destination while at the depot or awaiting locker allocation. Current status: '{Status}'.");
+        if (CurrentAllocation is not null)
+            throw new InvalidOperationException(
+                "The active locker allocation must be released before returning the parcel.");
+        Status = ParcelStatus.ReturnPending;
+    }
+
     public void MarkReturnedToSender()
     {
         EnsureStatus(ParcelStatus.ReturnPending);
