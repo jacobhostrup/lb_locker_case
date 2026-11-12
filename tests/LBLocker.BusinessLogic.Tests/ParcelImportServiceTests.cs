@@ -1,3 +1,4 @@
+using Xunit;
 using LBLocker.BusinessLogic.Contracts;
 using LBLocker.BusinessLogic.Interfaces;
 using LBLocker.BusinessLogic.Services;
