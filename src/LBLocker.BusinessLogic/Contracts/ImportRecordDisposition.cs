@@ -3,7 +3,8 @@ namespace LBLocker.BusinessLogic.Contracts;
 public enum ImportRecordDisposition
 {
     ParcelCreated,
-    ExistingParcelSkipped,
+    ParcelUpdated,
+    NoChangesSkipped,
     DuplicateEventSkipped,
     IncompleteRowRejected
 }
