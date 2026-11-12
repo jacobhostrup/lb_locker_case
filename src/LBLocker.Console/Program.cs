@@ -222,6 +222,10 @@ internal sealed class ConsoleApplication(IServiceProvider services)
         var credentials = await db.AllocationCredentials.AsNoTracking()
             .Where(x => parcel.Allocations.Select(a => a.Id).Contains(x.AllocationId))
             .ToListAsync();
+        var processAttempts = await db.ProcessAttempts.AsNoTracking()
+            .Where(x => x.ParcelId == parcel.Id)
+            .ToListAsync();
+        processAttempts = processAttempts.OrderBy(x => x.OccurredAt).ToList();
 
         Console.WriteLine($"\nPARCEL: {parcel.ExternalParcelId}");
         Console.WriteLine(new string('=', 90));
@@ -249,6 +253,22 @@ internal sealed class ConsoleApplication(IServiceProvider services)
             Console.WriteLine("\nNOTIFICATION ATTEMPTS");
             foreach (var dispatch in dispatches)
                 Console.WriteLine($"  {dispatch.AttemptedAt:O} | {dispatch.Channel} | {dispatch.Status} | {dispatch.ExternalDispatchId ?? dispatch.ErrorCode ?? "No external result"}");
+        }
+
+        Console.WriteLine("\nPROCESS ATTEMPTS / DIAGNOSTICS");
+        if (processAttempts.Count == 0)
+            Console.WriteLine("  No process attempts have been recorded.");
+        foreach (var attempt in processAttempts)
+        {
+            Console.WriteLine($"  {attempt.OccurredAt:O} | {attempt.Step} | Attempt {attempt.AttemptNumber} | {attempt.Status} | Correlation: {attempt.CorrelationId}");
+            if (attempt.HttpStatusCode.HasValue)
+                Console.WriteLine($"    HTTP: {attempt.HttpStatusCode}");
+            if (!string.IsNullOrWhiteSpace(attempt.ErrorCode))
+                Console.WriteLine($"    Error code: {attempt.ErrorCode}");
+            if (!string.IsNullOrWhiteSpace(attempt.ErrorMessage))
+                Console.WriteLine($"    Error: {attempt.ErrorMessage}");
+            if (!string.IsNullOrWhiteSpace(attempt.ResponseBody))
+                Console.WriteLine($"    API response: {attempt.ResponseBody}");
         }
 
         Console.WriteLine("\nEVENT HISTORY");
