@@ -97,7 +97,7 @@ public sealed class LockerApiClient(HttpClient httpClient) : ILockerApiClient
         var request = new ReleaseRequestDto
         {
             ParcelId = externalParcelId,
-            Reason = reason.ToString().ToUpperInvariant()
+            Reason = reason switch\n            {\n                CompartmentReleaseReason.CustomerPickedUp => "CUSTOMER_PICKED_UP",\n                CompartmentReleaseReason.ExpiredReturnedToDepot => "EXPIRED_RETURNED_TO_DEPOT",\n                CompartmentReleaseReason.MaintenanceOverride => "MAINTENANCE_OVERRIDE",\n                _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null)\n            }
         };
 
         using var response = await httpClient.PostAsJsonAsync(
