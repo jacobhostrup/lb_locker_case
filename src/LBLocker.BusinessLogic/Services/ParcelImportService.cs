@@ -20,6 +20,7 @@ public sealed class ParcelImportService(IParcelRepository parcelRepository)
         var duplicateEventsSkipped = 0;
         var existingParcelsSkipped = 0;
         var incompleteRowsSkipped = 0;
+        var items = new List<ParcelImportItemResult>(records.Count);
 
         foreach (var record in records.OrderBy(record => record.Timestamp))
         {
@@ -45,6 +46,12 @@ public sealed class ParcelImportService(IParcelRepository parcelRepository)
                 default:
                     throw new ArgumentOutOfRangeException(nameof(disposition), disposition, null);
             }
+
+            items.Add(new ParcelImportItemResult(
+                record.EventId,
+                record.ExternalParcelId,
+                record.Timestamp,
+                disposition));
         }
 
         return new ParcelImportResult(
@@ -52,6 +59,7 @@ public sealed class ParcelImportService(IParcelRepository parcelRepository)
             created,
             duplicateEventsSkipped,
             existingParcelsSkipped,
-            incompleteRowsSkipped);
+            incompleteRowsSkipped,
+            items);
     }
 }
