@@ -439,11 +439,36 @@ internal sealed class ConsoleApplication(IServiceProvider services)
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
             var db = scope.ServiceProvider.GetRequiredService<LockerDbContext>();
-            var readyParcelIds = await db.Parcels
-                .Where(x => eligibleParcelIds.Contains(x.ExternalParcelId) &&
-                            x.Status == ParcelStatus.AcceptedAtDepot)
-                .Select(x => x.ExternalParcelId)
+            var eligibleParcels = await db.Parcels
+                .Where(x => eligibleParcelIds.Contains(x.ExternalParcelId))
                 .ToListAsync();
+
+            // A CSV import represents parcels physically received and ready
+            // for locker processing. Promote newly registered parcels to depot
+            // readiness before attempting allocation and notification.
+            var readyParcelIds = new List<string>();
+            foreach (var parcel in eligibleParcels)
+            {
+                if (parcel.Status == ParcelStatus.Registered)
+                {
+                    parcel.AcceptAtDepot();
+                    db.ParcelEvents.Add(new ParcelEventRecord
+                    {
+                        Id = Guid.NewGuid(),
+                        ParcelId = parcel.Id,
+                        EventType = "ParcelPhysicallyReadyAtDepot",
+                        OccurredAt = DateTimeOffset.UtcNow,
+                        RecordedAt = DateTimeOffset.UtcNow,
+                        Description = "CSV import treated as confirmation that the parcel is physically present and ready for locker processing."
+                    });
+                    readyParcelIds.Add(parcel.ExternalParcelId);
+                }
+                else if (parcel.Status == ParcelStatus.AcceptedAtDepot)
+                {
+                    readyParcelIds.Add(parcel.ExternalParcelId);
+                }
+            }
+            await db.SaveChangesAsync();
 
             var processed = 0;
             var processingFailures = new List<string>();
