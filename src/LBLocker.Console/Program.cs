@@ -102,9 +102,8 @@ internal sealed class ConsoleApplication(IServiceProvider services)
             .OrderBy(x => x.ExternalParcelId)
             .ToListAsync();
         var recipients = await db.Recipients.AsNoTracking().ToDictionaryAsync(x => x.ParcelId);
-        var events = await db.ParcelEvents.AsNoTracking()
-            .OrderByDescending(x => x.OccurredAt)
-            .ToListAsync();
+        var events = await db.ParcelEvents.AsNoTracking().ToListAsync();
+        events = events.OrderByDescending(x => x.OccurredAt).ToList();
 
         Console.WriteLine("\nPARCEL OVERVIEW");
         Console.WriteLine(new string('=', 150));
@@ -150,12 +149,12 @@ internal sealed class ConsoleApplication(IServiceProvider services)
         var recipient = await db.Recipients.AsNoTracking().SingleOrDefaultAsync(x => x.ParcelId == parcel.Id);
         var history = await db.ParcelEvents.AsNoTracking()
             .Where(x => x.ParcelId == parcel.Id)
-            .OrderBy(x => x.OccurredAt)
             .ToListAsync();
+        history = history.OrderBy(x => x.OccurredAt).ToList();
         var dispatches = await db.NotificationDispatches.AsNoTracking()
             .Where(x => parcel.Allocations.Select(a => a.Id).Contains(x.AllocationId))
-            .OrderBy(x => x.AttemptedAt)
             .ToListAsync();
+        dispatches = dispatches.OrderBy(x => x.AttemptedAt).ToList();
         var credentials = await db.AllocationCredentials.AsNoTracking()
             .Where(x => parcel.Allocations.Select(a => a.Id).Contains(x.AllocationId))
             .ToListAsync();
@@ -199,9 +198,8 @@ internal sealed class ConsoleApplication(IServiceProvider services)
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<LockerDbContext>();
-        var imports = await db.ImportedEvents.AsNoTracking()
-            .OrderByDescending(x => x.ImportedAt)
-            .ToListAsync();
+        var imports = await db.ImportedEvents.AsNoTracking().ToListAsync();
+        imports = imports.OrderByDescending(x => x.ImportedAt).ToList();
 
         Console.WriteLine("\nIMPORTED SOURCE EVENTS");
         Console.WriteLine(new string('-', 120));
