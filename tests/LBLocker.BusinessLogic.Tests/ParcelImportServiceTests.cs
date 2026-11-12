@@ -25,6 +25,8 @@ public sealed class ParcelImportServiceTests
         Assert.Single(repository.Parcels);
         Assert.Equal("PARCEL-1", repository.Parcels[0].ExternalParcelId);
         Assert.Equal(ParcelStatus.Registered, repository.Parcels[0].Status);
+        Assert.Single(repository.Recipients);
+        Assert.Equal("Test Recipient", repository.Recipients[0].RecipientName);
     }
 
     [Fact]
@@ -127,6 +129,30 @@ public sealed class ParcelImportServiceTests
         private readonly List<Parcel> _parcels = [];
 
         public IReadOnlyList<Parcel> Parcels => _parcels;
+        public List<ParcelImportRecord> Recipients { get; } = [];
+        private readonly HashSet<string> _eventIds = new(StringComparer.Ordinal);
+
+        public Task<ImportRecordDisposition> ProcessImportRecordAsync(
+            ParcelImportRecord record,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(record.EventId))
+                return Task.FromResult(ImportRecordDisposition.IncompleteRowRejected);
+            if (!_eventIds.Add(record.EventId))
+                return Task.FromResult(ImportRecordDisposition.DuplicateEventSkipped);
+            if (string.IsNullOrWhiteSpace(record.ExternalParcelId) ||
+                string.IsNullOrWhiteSpace(record.RecipientId) || record.Size is null)
+                return Task.FromResult(ImportRecordDisposition.IncompleteRowRejected);
+
+            if (_parcels.Any(parcel => parcel.ExternalParcelId == record.ExternalParcelId))
+                return Task.FromResult(ImportRecordDisposition.ExistingParcelSkipped);
+
+            _parcels.Add(Parcel.Register(record.ExternalParcelId, record.RecipientId, record.Size.Value, record.Timestamp));
+            Recipients.Add(record);
+            return Task.FromResult(ImportRecordDisposition.ParcelCreated);
+        }
 
         public Task<Parcel?> GetByExternalParcelIdAsync(
             string externalParcelId,
