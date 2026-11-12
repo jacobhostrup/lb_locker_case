@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LBLocker.Infrastructure", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LBLocker.Domain.Tests", "tests\LBLocker.Domain.Tests\LBLocker.Domain.Tests.csproj", "{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1004}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LBLocker.BusinessLogic.Tests", "tests\LBLocker.BusinessLogic.Tests\LBLocker.BusinessLogic.Tests.csproj", "{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1005}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,11 +30,5 @@ Global
 		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1003}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1003}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1003}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1004}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1004}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1004}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1004}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
