@@ -56,6 +56,22 @@ static async Task UpgradeSqliteSchemaAsync(LockerDbContext db)
             await db.Database.ExecuteSqlRawAsync(
                 "ALTER TABLE Parcels ADD COLUMN TargetLockerId TEXT NULL;");
 
+        var notificationColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using (var notificationCommand = connection.CreateCommand())
+        {
+            notificationCommand.CommandText = "PRAGMA table_info('NotificationDispatches');";
+            await using var notificationReader = await notificationCommand.ExecuteReaderAsync();
+            while (await notificationReader.ReadAsync())
+                notificationColumns.Add(notificationReader.GetString(1));
+        }
+
+        if (!notificationColumns.Contains("HttpStatusCode"))
+            await db.Database.ExecuteSqlRawAsync("ALTER TABLE NotificationDispatches ADD COLUMN HttpStatusCode INTEGER NULL;");
+        if (!notificationColumns.Contains("ErrorMessage"))
+            await db.Database.ExecuteSqlRawAsync("ALTER TABLE NotificationDispatches ADD COLUMN ErrorMessage TEXT NULL;");
+        if (!notificationColumns.Contains("ResponseBody"))
+            await db.Database.ExecuteSqlRawAsync("ALTER TABLE NotificationDispatches ADD COLUMN ResponseBody TEXT NULL;");
+
         await db.Database.ExecuteSqlRawAsync("""
             CREATE TABLE IF NOT EXISTS ProcessAttempts (
                 Id TEXT NOT NULL CONSTRAINT PK_ProcessAttempts PRIMARY KEY,
