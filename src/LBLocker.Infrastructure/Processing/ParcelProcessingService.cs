@@ -40,16 +40,18 @@ public sealed class ParcelProcessingService(
         if (string.IsNullOrWhiteSpace(parcel.TargetLockerId))
             throw new InvalidOperationException("Requested locker is missing. The parcel cannot be allocated to another locker.");
 
-        if (parcel.Status == ParcelStatus.Registered)
-        {
-            parcel.AcceptAtDepot();
-        }
+        if (parcel.Status != ParcelStatus.AcceptedAtDepot &&
+            parcel.Status != ParcelStatus.InTransit &&
+            parcel.Status != ParcelStatus.AvailableForPickup)
+            throw new InvalidOperationException(
+                $"Parcel must be explicitly marked physically ready at the depot before processing. Current status: '{parcel.Status}'.");
+
         if (parcel.Status == ParcelStatus.AcceptedAtDepot)
         {
             parcel.MarkInTransit();
             await db.SaveChangesAsync(cancellationToken);
             await AddEventAsync(parcel.Id, "ParcelReadyForLockerProcessing",
-                "Parcel explicitly submitted for locker processing from depot.", null, cancellationToken);
+                "Parcel was explicitly marked physically ready at the depot and submitted for locker processing.", null, cancellationToken);
         }
 
         var allocation = parcel.CurrentAllocation;
