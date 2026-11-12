@@ -136,8 +136,8 @@ public sealed class ParcelRepositoryTests
 
         var events = await db.ParcelEvents
             .Where(x => x.ParcelId == parcel.Id)
-            .OrderBy(x => x.OccurredAt)
             .ToListAsync();
+        events = events.OrderBy(x => x.OccurredAt).ToList();
 
         Assert.Equal(2, events.Count);
         Assert.Equal("ParcelRegistered", events[0].EventType);
