@@ -78,10 +78,7 @@ internal sealed class ConsoleApplication(IServiceProvider services)
         {
             recipients.TryGetValue(parcel.Id, out var recipient);
             var allocation = parcel.CurrentAllocation;
-            var requestedLocker = events
-                .Where(x => x.ParcelId == parcel.Id && x.EventType == "RequestedLockerObserved")
-                .OrderByDescending(x => x.OccurredAt)
-                .FirstOrDefault()?.Description ?? "Not recorded";
+            var requestedLocker = parcel.TargetLockerId ?? "Not provided";
             var allocated = allocation is null
                 ? "—"
                 : $"{allocation.LockerId} / {allocation.CompartmentId}";
@@ -210,7 +207,8 @@ internal sealed class ConsoleApplication(IServiceProvider services)
             Console.WriteLine(new string('-', 100));
             Console.WriteLine($"Rows read:                  {result.RowsRead}");
             Console.WriteLine($"Parcels created:             {result.ParcelsCreated}");
-            Console.WriteLine($"Existing parcels skipped:    {result.ExistingParcelsSkipped}");
+            Console.WriteLine($"Parcels updated:              {result.ParcelsUpdated}");
+            Console.WriteLine($"Rows with no changes skipped: {result.NoChangesSkipped}");
             Console.WriteLine($"Duplicate events skipped:    {result.DuplicateEventsSkipped}");
             Console.WriteLine($"Incomplete rows rejected:    {result.IncompleteRowsSkipped}");
             await WriteImportReportAsync(result);
@@ -247,7 +245,8 @@ internal sealed class ConsoleApplication(IServiceProvider services)
         disposition switch
         {
             LBLocker.BusinessLogic.Contracts.ImportRecordDisposition.ParcelCreated => "CREATED",
-            LBLocker.BusinessLogic.Contracts.ImportRecordDisposition.ExistingParcelSkipped => "EXISTING PARCEL",
+            LBLocker.BusinessLogic.Contracts.ImportRecordDisposition.ParcelUpdated => "UPDATED",
+            LBLocker.BusinessLogic.Contracts.ImportRecordDisposition.NoChangesSkipped => "NO CHANGES - SKIPPED",
             LBLocker.BusinessLogic.Contracts.ImportRecordDisposition.DuplicateEventSkipped => "DUPLICATE EVENT",
             LBLocker.BusinessLogic.Contracts.ImportRecordDisposition.IncompleteRowRejected => "REJECTED - INCOMPLETE",
             _ => disposition.ToString()
