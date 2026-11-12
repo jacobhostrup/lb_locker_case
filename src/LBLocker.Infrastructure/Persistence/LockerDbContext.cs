@@ -13,6 +13,7 @@ public sealed class LockerDbContext(DbContextOptions<LockerDbContext> options) :
     public DbSet<ImportedEventRecord> ImportedEvents => Set<ImportedEventRecord>();
     public DbSet<NotificationDispatchRecord> NotificationDispatches => Set<NotificationDispatchRecord>();
     public DbSet<ParcelEventRecord> ParcelEvents => Set<ParcelEventRecord>();
+    public DbSet<ProcessAttemptRecord> ProcessAttempts => Set<ProcessAttemptRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -116,6 +117,22 @@ public sealed class LockerDbContext(DbContextOptions<LockerDbContext> options) :
                 .HasFilter("\"ExternalDispatchId\" IS NOT NULL");
             entity.HasOne<Allocation>().WithMany()
                 .HasForeignKey(x => x.AllocationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProcessAttemptRecord>(entity =>
+        {
+            entity.ToTable("ProcessAttempts");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Step).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.ErrorCode).HasMaxLength(150);
+            entity.Property(x => x.ErrorMessage).HasMaxLength(2000);
+            entity.Property(x => x.ResponseBody).HasMaxLength(8000);
+            entity.HasIndex(x => new { x.ParcelId, x.OccurredAt });
+            entity.HasIndex(x => new { x.ParcelId, x.Step, x.AttemptNumber });
+            entity.HasOne<Parcel>().WithMany()
+                .HasForeignKey(x => x.ParcelId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
