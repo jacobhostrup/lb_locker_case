@@ -28,7 +28,15 @@ public sealed class NotificationApiClient(HttpClient httpClient) : INotification
 
         using var response = await httpClient.PostAsJsonAsync(
             "notifications", payload, JsonOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new LockerApiException(
+                $"Send {request.Channel} notification",
+                response.StatusCode,
+                response.ReasonPhrase,
+                body);
+        }
 
         var result = await response.Content.ReadFromJsonAsync<NotificationResponseDto>(
             JsonOptions, cancellationToken)
