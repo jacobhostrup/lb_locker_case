@@ -75,20 +75,76 @@ public sealed class ParcelRepository(LockerDbContext dbContext) : IParcelReposit
 
         if (existingParcel is not null)
         {
+            var recipient = await dbContext.Recipients
+                .SingleOrDefaultAsync(x => x.ParcelId == existingParcel.Id, cancellationToken);
+            var changes = new List<string>();
+
+            void TrackChange(string field, string? oldValue, string? newValue)
+            {
+                if (!string.IsNullOrWhiteSpace(newValue) &&
+                    !string.Equals(oldValue, newValue, StringComparison.Ordinal))
+                {
+                    changes.Add($"{field}: '{oldValue ?? "(empty)"}' -> '{newValue}'");
+                }
+            }
+
+            TrackChange("RecipientId", existingParcel.RecipientId, record.RecipientId);
+            TrackChange("RecipientName", recipient?.Name, record.RecipientName);
+            TrackChange("RecipientPhone", recipient?.PhoneNumber, record.RecipientPhone);
+            TrackChange("RecipientEmail", recipient?.Email, record.RecipientEmail);
+            TrackChange("RecipientPostalCode", recipient?.PostalCode, record.RecipientPostalCode);
+            TrackChange("Size", existingParcel.Size.ToString(), record.Size?.ToString());
+            TrackChange("RequestedLocker", existingParcel.TargetLockerId, record.TargetLockerId);
+
+            if (changes.Count == 0)
+            {
+                importedEvent.ParcelExternalId = existingParcel.ExternalParcelId;
+                if (isNewEvent)
+                    dbContext.ImportedEvents.Add(importedEvent);
+
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return ImportRecordDisposition.NoChangesSkipped;
+            }
+
+            existingParcel.ApplyImportedSnapshot(record.Size!.Value, record.TargetLockerId);
+            if (recipient is not null)
+            {
+                if (!string.IsNullOrWhiteSpace(record.RecipientName)) recipient.Name = record.RecipientName;
+                if (!string.IsNullOrWhiteSpace(record.RecipientPhone)) recipient.PhoneNumber = record.RecipientPhone;
+                if (!string.IsNullOrWhiteSpace(record.RecipientEmail)) recipient.Email = record.RecipientEmail;
+                if (!string.IsNullOrWhiteSpace(record.RecipientPostalCode)) recipient.PostalCode = record.RecipientPostalCode;
+                recipient.ExternalRecipientId = record.RecipientId;
+            }
+
+            foreach (var change in changes)
+            {
+                dbContext.ParcelEvents.Add(new ParcelEventRecord
+                {
+                    Id = Guid.NewGuid(),
+                    ParcelId = existingParcel.Id,
+                    EventType = "ImportedDataChanged",
+                    OccurredAt = record.Timestamp,
+                    RecordedAt = now,
+                    Description = $"Source EventId {record.EventId}: {change}"
+                });
+            }
+
             importedEvent.ParcelExternalId = existingParcel.ExternalParcelId;
             if (isNewEvent)
                 dbContext.ImportedEvents.Add(importedEvent);
 
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            return ImportRecordDisposition.ExistingParcelSkipped;
+            return ImportRecordDisposition.ParcelUpdated;
         }
 
         var parcel = Parcel.Register(
             record.ExternalParcelId,
             record.RecipientId,
             record.Size!.Value,
-            record.Timestamp);
+            record.Timestamp,
+            record.TargetLockerId);
 
         dbContext.Parcels.Add(parcel);
         dbContext.Recipients.Add(new RecipientRecord
