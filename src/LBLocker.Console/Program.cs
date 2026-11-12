@@ -16,6 +16,8 @@ Directory.CreateDirectory(dataDirectory);
 var databasePath = Path.Combine(dataDirectory, "lb-locker.db");
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
+// Keep EF Core warnings/errors, but suppress routine SQL command and query logging.
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
 builder.Services.AddBusinessLogic();
 builder.Services.AddLockerPersistence(databasePath);
 
