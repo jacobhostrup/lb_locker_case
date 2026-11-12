@@ -38,7 +38,23 @@ public sealed class ParcelProcessingService(
             throw new InvalidOperationException($"Parcel is already in terminal status '{parcel.Status}'.");
 
         if (string.IsNullOrWhiteSpace(parcel.TargetLockerId))
-            throw new InvalidOperationException("Requested locker is missing. The parcel cannot be allocated to another locker.");
+        {
+            await ReturnForInvalidDestinationAsync(
+                parcel, "Sender did not provide a requested locker ID.", cancellationToken);
+            return;
+        }
+
+        // Validate the sender-selected destination before generating a PIN or
+        // attempting an allocation. Never silently substitute another locker.
+        var availableLockers = await lockerApi.GetLockersAsync(cancellationToken);
+        var requestedLocker = availableLockers.SingleOrDefault(
+            x => string.Equals(x.LockerId, parcel.TargetLockerId, StringComparison.Ordinal));
+        if (requestedLocker is null)
+        {
+            await ReturnForInvalidDestinationAsync(
+                parcel, $"Sender supplied unknown locker ID '{parcel.TargetLockerId}'.", cancellationToken);
+            return;
+        }
 
         if (parcel.Status != ParcelStatus.AcceptedAtDepot &&
             parcel.Status != ParcelStatus.InTransit &&
@@ -141,9 +157,7 @@ public sealed class ParcelProcessingService(
             ?? throw new InvalidOperationException("The active allocation has no stored PIN credential.");
 
         var storedPin = pinProtector.Unprotect(credential.EncryptedPin);
-        var lockerList = await lockerApi.GetLockersAsync(cancellationToken);
-        var locker = lockerList.SingleOrDefault(x => x.LockerId == allocation.LockerId)
-            ?? throw new InvalidOperationException($"Locker '{allocation.LockerId}' was not returned by Locker API.");
+        var locker = requestedLocker;
 
         if (!string.IsNullOrWhiteSpace(recipient.PhoneNumber))
             await SendChannelAsync(parcel, recipient, allocation, storedPin, locker.Address,
@@ -175,6 +189,16 @@ public sealed class ParcelProcessingService(
                 "No notification channel was accepted. Parcel remains allocated and requires operational handling.",
                 null, cancellationToken);
         }
+    }
+
+    private async Task ReturnForInvalidDestinationAsync(
+        Parcel parcel, string reason, CancellationToken cancellationToken)
+    {
+        parcel.ReturnToSenderDueToInvalidDestination();
+        await db.SaveChangesAsync(cancellationToken);
+        await AddEventAsync(parcel.Id, "ReturnedToSenderInvalidDestination",
+            $"Parcel returned to sender. {reason} Responsibility for providing a valid recipient delivery destination rests with the sender.",
+            null, cancellationToken);
     }
 
     private async Task SendChannelAsync(
