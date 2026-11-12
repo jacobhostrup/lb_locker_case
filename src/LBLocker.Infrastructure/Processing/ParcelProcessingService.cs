@@ -65,7 +65,20 @@ public sealed class ParcelProcessingService(
                     "A previous allocation attempt has an unknown outcome. Reconcile the locker API before retrying; automatic retry could create a duplicate booking.");
 
             var correlationId = Guid.NewGuid();
-            var pin = pinGenerator.Generate();
+            var pinAttempt = await StartAttemptAsync(parcel.Id, correlationId,
+                ProcessStep.GeneratePin, cancellationToken);
+            string pin;
+            try
+            {
+                pin = pinGenerator.Generate();
+                await CompleteAttemptAsync(pinAttempt, ProcessAttemptStatus.Succeeded, null, null, null, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                await FailAttemptAsync(pinAttempt, exception, cancellationToken);
+                throw;
+            }
+
             var attempt = await StartAttemptAsync(parcel.Id, correlationId,
                 ProcessStep.AllocateCompartment, cancellationToken);
 
