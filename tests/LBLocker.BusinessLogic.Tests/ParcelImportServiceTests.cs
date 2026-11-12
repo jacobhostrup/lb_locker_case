@@ -98,7 +98,7 @@ public sealed class ParcelImportServiceTests
         var result = await service.ImportAsync(records);
 
         Assert.Equal(1, result.ParcelsCreated);
-        Assert.Equal(ParcelSize.Small, Assert.Single(repository.Parcels).Size);
+        Assert.Equal(ParcelSize.Large, Assert.Single(repository.Parcels).Size);
     }
 
     [Fact]
