@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LBLocker.Domain", "src\LBLocker.Domain\LBLocker.Domain.csproj", "{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1001}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LBLocker.BusinessLogic", "src\LBLocker.BusinessLogic\LBLocker.BusinessLogic.csproj", "{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1002}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LBLocker.Infrastructure", "src\LBLocker.Infrastructure\LBLocker.Infrastructure.csproj", "{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1003}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1001}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1001}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1001}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1001}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1002}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1002}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1002}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1002}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1003}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1003}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1003}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1003}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
