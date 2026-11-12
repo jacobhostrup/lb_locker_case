@@ -31,9 +31,12 @@ public sealed class LockerDbContext(DbContextOptions<LockerDbContext> options) :
             entity.HasMany(x => x.Allocations)
                 .WithOne()
                 .HasForeignKey("ParcelId")
+                .IsRequired()
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.Navigation(x => x.Allocations).UsePropertyAccessMode(PropertyAccessMode.Field);
+            entity.Navigation(x => x.Allocations)
+                .HasField("_allocations")
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 
         modelBuilder.Entity<Allocation>(entity =>
@@ -44,10 +47,18 @@ public sealed class LockerDbContext(DbContextOptions<LockerDbContext> options) :
                 table.HasCheckConstraint("CK_Allocations_ReleaseAfterAllocation", "\"ReleasedAt\" IS NULL OR \"ReleasedAt\" >= \"AllocatedAt\"");
             });
             entity.HasKey(x => x.Id);
+
+            // ParcelId is an explicit shadow FK: the domain object only exposes
+            // the owning parcel through Parcel.Allocations.
             entity.Property<Guid>("ParcelId").IsRequired();
             entity.Property(x => x.LockerId).HasMaxLength(100).IsRequired();
             entity.Property(x => x.CompartmentId).HasMaxLength(100).IsRequired();
-            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.AllocatedAt).IsRequired();
+            entity.Property(x => x.ExpiresAt).IsRequired();
+            entity.Property(x => x.ReleasedAt);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Ignore(x => x.IsReleased);
+
             entity.HasIndex("ParcelId", nameof(Allocation.ReleasedAt));
             entity.HasIndex("ParcelId").IsUnique().HasFilter("\"ReleasedAt\" IS NULL");
             entity.HasIndex(x => new { x.LockerId, x.CompartmentId }).IsUnique()
