@@ -27,6 +27,10 @@ public sealed class ParcelImportServiceTests
         Assert.Equal(ParcelStatus.Registered, repository.Parcels[0].Status);
         Assert.Single(repository.Recipients);
         Assert.Equal("Test Recipient", repository.Recipients[0].RecipientName);
+        var item = Assert.Single(result.Items);
+        Assert.Equal("EVT-1", item.EventId);
+        Assert.Equal("PARCEL-1", item.ExternalParcelId);
+        Assert.Equal(ImportRecordDisposition.ParcelCreated, item.Disposition);
     }
 
     [Fact]
@@ -45,6 +49,8 @@ public sealed class ParcelImportServiceTests
         Assert.Equal(1, result.ParcelsCreated);
         Assert.Equal(1, result.DuplicateEventsSkipped);
         Assert.Single(repository.Parcels);
+        Assert.Equal(ImportRecordDisposition.ParcelCreated, result.Items[0].Disposition);
+        Assert.Equal(ImportRecordDisposition.DuplicateEventSkipped, result.Items[1].Disposition);
     }
 
     [Fact]
@@ -58,6 +64,7 @@ public sealed class ParcelImportServiceTests
 
         Assert.Equal(1, result.IncompleteRowsSkipped);
         Assert.Empty(repository.Parcels);
+        Assert.Equal(ImportRecordDisposition.IncompleteRowRejected, Assert.Single(result.Items).Disposition);
     }
 
     [Fact]
@@ -72,6 +79,7 @@ public sealed class ParcelImportServiceTests
             [Record("EVT-2", "PARCEL-1", BaseTime.AddHours(1), ParcelSize.Large)]);
 
         Assert.Equal(1, result.ExistingParcelsSkipped);
+        Assert.Equal(ImportRecordDisposition.ExistingParcelSkipped, Assert.Single(result.Items).Disposition);
         Assert.Single(repository.Parcels);
         Assert.Equal(ParcelSize.Small, existing.Size);
     }
@@ -102,6 +110,7 @@ public sealed class ParcelImportServiceTests
 
         Assert.Equal(0, result.RowsRead);
         Assert.Equal(0, result.ParcelsCreated);
+        Assert.Empty(result.Items);
     }
 
     private static ParcelImportRecord Record(
