@@ -1,12 +1,22 @@
 namespace LBLocker.BusinessLogic.Contracts;
 
 /// <summary>
-/// Summary of one import batch. Skipped rows are counted so that incomplete
-/// or repeated source data is visible instead of silently discarded.
+/// Outcome for one source row. Contains identifiers and processing outcome only;
+/// it deliberately excludes recipient contact details.
+/// </summary>
+public sealed record ParcelImportItemResult(
+    string EventId,
+    string ExternalParcelId,
+    DateTimeOffset Timestamp,
+    ImportRecordDisposition Disposition);
+
+/// <summary>
+/// Summary and per-row outcomes for one import batch.
 /// </summary>
 public sealed record ParcelImportResult(
     int RowsRead,
     int ParcelsCreated,
     int DuplicateEventsSkipped,
     int ExistingParcelsSkipped,
-    int IncompleteRowsSkipped);
+    int IncompleteRowsSkipped,
+    IReadOnlyList<ParcelImportItemResult> Items);
