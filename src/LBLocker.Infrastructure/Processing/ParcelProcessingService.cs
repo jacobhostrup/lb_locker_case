@@ -79,6 +79,9 @@ public sealed class ParcelProcessingService(
                     pin,
                     cancellationToken);
 
+                if (!string.Equals(result.LockerId, parcel.TargetLockerId, StringComparison.Ordinal))
+                    throw new InvalidOperationException($"Locker API allocated parcel to '{result.LockerId}', but requested locker is '{parcel.TargetLockerId}'.");
+
                 if (!string.Equals(result.PinCode, pin, StringComparison.Ordinal))
                     throw new InvalidOperationException("Locker API did not echo the client-generated PIN unchanged.");
 
@@ -158,9 +161,9 @@ public sealed class ParcelProcessingService(
         Parcel parcel, RecipientRecord recipient, Allocation allocation, string pin,
         string lockerAddress, ApiNotificationChannel channel, CancellationToken cancellationToken)
     {
-        var persistedChannel = channel == NotificationChannel.Sms
-            ? Persistence.Entities.NotificationChannel.Sms
-            : Persistence.Entities.NotificationChannel.Email;
+        var persistedChannel = channel == ApiNotificationChannel.Sms
+            ? EntityNotificationChannel.Sms
+            : EntityNotificationChannel.Email;
 
         var accepted = await db.NotificationDispatches.AnyAsync(x =>
             x.AllocationId == allocation.Id &&
