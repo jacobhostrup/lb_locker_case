@@ -18,7 +18,8 @@ public sealed class ParcelImportService(IParcelRepository parcelRepository)
 
         var created = 0;
         var duplicateEventsSkipped = 0;
-        var existingParcelsSkipped = 0;
+        var updated = 0;
+        var noChanges = 0;
         var incompleteRowsSkipped = 0;
         var items = new List<ParcelImportItemResult>(records.Count);
 
@@ -34,8 +35,11 @@ public sealed class ParcelImportService(IParcelRepository parcelRepository)
                 case ImportRecordDisposition.ParcelCreated:
                     created++;
                     break;
-                case ImportRecordDisposition.ExistingParcelSkipped:
-                    existingParcelsSkipped++;
+                case ImportRecordDisposition.ParcelUpdated:
+                    updated++;
+                    break;
+                case ImportRecordDisposition.NoChangesSkipped:
+                    noChanges++;
                     break;
                 case ImportRecordDisposition.DuplicateEventSkipped:
                     duplicateEventsSkipped++;
@@ -58,7 +62,8 @@ public sealed class ParcelImportService(IParcelRepository parcelRepository)
             records.Count,
             created,
             duplicateEventsSkipped,
-            existingParcelsSkipped,
+            updated,
+            noChanges,
             incompleteRowsSkipped,
             items);
     }
