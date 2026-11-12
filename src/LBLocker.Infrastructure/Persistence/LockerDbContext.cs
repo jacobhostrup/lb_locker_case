@@ -48,14 +48,19 @@ public sealed class LockerDbContext(DbContextOptions<LockerDbContext> options) :
             entity.Property(x => x.CompartmentId).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             entity.HasIndex("ParcelId", nameof(Allocation.ReleasedAt));
-            entity.HasIndex(x => new { x.LockerId, x.CompartmentId, x.ReleasedAt });
+            entity.HasIndex("ParcelId").IsUnique().HasFilter("\"ReleasedAt\" IS NULL");
+            entity.HasIndex(x => new { x.LockerId, x.CompartmentId }).IsUnique()
+                .HasFilter("\"ReleasedAt\" IS NULL");
         });
 
         modelBuilder.Entity<RecipientRecord>(entity =>
         {
             entity.ToTable("Recipients");
-            entity.HasKey(x => x.ExternalRecipientId);
-            entity.Property(x => x.ExternalRecipientId).HasMaxLength(100);
+            entity.HasKey(x => x.ParcelId);
+            entity.Property(x => x.ExternalRecipientId).HasMaxLength(100).IsRequired();
+            entity.HasOne<Parcel>().WithOne()
+                .HasForeignKey<RecipientRecord>(x => x.ParcelId)
+                .OnDelete(DeleteBehavior.Restrict);
             entity.Property(x => x.Name).HasMaxLength(200);
             entity.Property(x => x.PhoneNumber).HasMaxLength(40);
             entity.Property(x => x.Email).HasMaxLength(320);
