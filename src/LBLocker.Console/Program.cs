@@ -1,3 +1,5 @@
+using LBLocker.Domain.Parcels;
+using LBLocker.Infrastructure.Persistence.Entities;
 using LBLocker.BusinessLogic.Services;
 using LBLocker.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -104,8 +106,6 @@ internal sealed class ConsoleApplication(IServiceProvider services)
         var recipients = await db.Recipients.AsNoTracking().ToDictionaryAsync(x => x.ParcelId);
         var credentials = await db.AllocationCredentials.AsNoTracking().ToListAsync();
         var dispatches = await db.NotificationDispatches.AsNoTracking().ToListAsync();
-        var events = await db.ParcelEvents.AsNoTracking().ToListAsync();
-
         Console.WriteLine("\\nPARCEL OVERVIEW - ONE ROW PER PARCEL");
         Console.WriteLine(new string('=', 145));
         Console.WriteLine($"{"Parcel ID",-18} {"Recipient",-20} {"PIN",-12} {"Compartment",-28} {"SMS",-12} {"E-mail",-12} {"Final status",-25}");
