@@ -1,5 +1,6 @@
 using LBLocker.BusinessLogic.Interfaces;
 using LBLocker.Infrastructure.FileImport;
+using LBLocker.Infrastructure.Http;
 using LBLocker.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,10 @@ public static class ServiceRegistration
 
         services.AddScoped<IParcelRepository, ParcelRepository>();
         services.AddScoped<IParcelFileReader, CsvParcelFileReader>();
+        services.AddHttpClient<ILockerApiClient, LockerApiClient>(client =>
+            client.BaseAddress = new Uri("http://localhost:18080/api/v1/"));
+        services.AddHttpClient<INotificationApiClient, NotificationApiClient>(client =>
+            client.BaseAddress = new Uri("http://localhost:18080/api/v1/"));
         return services;
     }
 }
