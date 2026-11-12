@@ -22,6 +22,43 @@ await using (var scope = host.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<LockerDbContext>();
     await db.Database.EnsureCreatedAsync();
+    await UpgradeSqliteSchemaAsync(db);
+}
+
+static async Task UpgradeSqliteSchemaAsync(LockerDbContext db)
+{
+    var connection = db.Database.GetDbConnection();
+    var shouldClose = connection.State != System.Data.ConnectionState.Open;
+    if (shouldClose)
+        await connection.OpenAsync();
+
+    try
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info('Parcels');";
+        await using var reader = await command.ExecuteReaderAsync();
+
+        var hasTargetLockerId = false;
+        while (await reader.ReadAsync())
+        {
+            if (string.Equals(reader.GetString(1), "TargetLockerId", StringComparison.OrdinalIgnoreCase))
+            {
+                hasTargetLockerId = true;
+                break;
+            }
+        }
+
+        await reader.DisposeAsync();
+
+        if (!hasTargetLockerId)
+            await db.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE Parcels ADD COLUMN TargetLockerId TEXT NULL;");
+    }
+    finally
+    {
+        if (shouldClose)
+            await connection.CloseAsync();
+    }
 }
 
 var application = new ConsoleApplication(host.Services);
