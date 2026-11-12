@@ -102,6 +102,18 @@ public sealed class ParcelRepository(LockerDbContext dbContext) : IParcelReposit
             CreatedAt = now
         });
 
+        // The first lifecycle event is committed atomically with the parcel,
+        // recipient and imported source event.
+        dbContext.ParcelEvents.Add(new ParcelEventRecord
+        {
+            Id = Guid.NewGuid(),
+            ParcelId = parcel.Id,
+            EventType = "ParcelRegistered",
+            OccurredAt = record.Timestamp,
+            RecordedAt = now,
+            Description = "Parcel registration imported from source batch."
+        });
+
         importedEvent.ParcelExternalId = parcel.ExternalParcelId;
         if (isNewEvent)
             dbContext.ImportedEvents.Add(importedEvent);
@@ -109,6 +121,46 @@ public sealed class ParcelRepository(LockerDbContext dbContext) : IParcelReposit
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return ImportRecordDisposition.ParcelCreated;
+    }
+
+    public async Task RecordEventAsync(
+        Guid parcelId,
+        string eventType,
+        DateTimeOffset occurredAt,
+        string? description = null,
+        Guid? correlationId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (parcelId == Guid.Empty)
+            throw new ArgumentException("Parcel ID cannot be empty.", nameof(parcelId));
+
+        if (string.IsNullOrWhiteSpace(eventType))
+            throw new ArgumentException("Event type is required.", nameof(eventType));
+
+        if (eventType.Length > 100)
+            throw new ArgumentOutOfRangeException(nameof(eventType), "Event type cannot exceed 100 characters.");
+
+        if (description?.Length > 500)
+            throw new ArgumentOutOfRangeException(nameof(description), "Description cannot exceed 500 characters.");
+
+        var parcelExists = await dbContext.Parcels
+            .AnyAsync(x => x.Id == parcelId, cancellationToken);
+
+        if (!parcelExists)
+            throw new InvalidOperationException($"Parcel '{parcelId}' does not exist.");
+
+        dbContext.ParcelEvents.Add(new ParcelEventRecord
+        {
+            Id = Guid.NewGuid(),
+            ParcelId = parcelId,
+            EventType = eventType,
+            OccurredAt = occurredAt,
+            RecordedAt = DateTimeOffset.UtcNow,
+            Description = description,
+            CorrelationId = correlationId
+        });
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task AddAsync(Parcel parcel, CancellationToken cancellationToken = default)
