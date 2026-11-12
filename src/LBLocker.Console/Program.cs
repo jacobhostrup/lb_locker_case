@@ -119,6 +119,7 @@ internal sealed class ConsoleApplication(IServiceProvider services)
             Console.WriteLine("2. Import parcels from CSV");
             Console.WriteLine("3. Import history");
             Console.WriteLine("4. Process / reprocess parcel");
+            Console.WriteLine("5. Mark parcel physically ready at depot");
             Console.WriteLine("0. Exit");
             Console.Write("\nSelect: ");
 
@@ -134,6 +135,8 @@ internal sealed class ConsoleApplication(IServiceProvider services)
                 await ShowImportHistoryAsync();
             else if (choice == "4")
                 await ProcessParcelAsync();
+            else if (choice == "5")
+                await MarkDepotReadyAsync();
         }
     }
 
@@ -309,6 +312,50 @@ internal sealed class ConsoleApplication(IServiceProvider services)
         Pause();
     }
 
+    private async Task MarkDepotReadyAsync()
+    {
+        await using var scope = services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<LockerDbContext>();
+        Console.Write("Enter Parcel ID physically received and ready at depot: ");
+        var externalParcelId = Console.ReadLine()?.Trim();
+        if (string.IsNullOrWhiteSpace(externalParcelId))
+            return;
+
+        var parcel = await db.Parcels.SingleOrDefaultAsync(
+            x => x.ExternalParcelId == externalParcelId);
+        if (parcel is null)
+        {
+            WriteError($"Parcel '{externalParcelId}' was not found.");
+            Pause();
+            return;
+        }
+
+        try
+        {
+            parcel.AcceptAtDepot();
+            await db.SaveChangesAsync();
+            var repository = scope.ServiceProvider.GetRequiredService<
+                LBLocker.BusinessLogic.Interfaces.IParcelRepository>();
+            await repository.RecordEventAsync(
+                parcel.Id,
+                "ParcelPhysicallyReadyAtDepot",
+                DateTimeOffset.UtcNow,
+                "Operator explicitly confirmed that the parcel is physically present and ready for locker processing.");
+
+            Console.WriteLine("Depot readiness recorded. Processing parcel...");
+            var processor = scope.ServiceProvider.GetRequiredService<
+                LBLocker.Infrastructure.Processing.ParcelProcessingService>();
+            await processor.ProcessAsync(externalParcelId);
+            Console.WriteLine("Processing run completed. Check parcel details for individual step results.");
+        }
+        catch (Exception exception)
+        {
+            WriteError($"Could not mark/process parcel: {exception.Message}");
+        }
+
+        Pause();
+    }
+
     private async Task ProcessParcelAsync()
     {
         await using var scope = services.CreateAsyncScope();
@@ -382,6 +429,39 @@ internal sealed class ConsoleApplication(IServiceProvider services)
             var records = await reader.ReadAsync(stream);
             var result = await importer.ImportAsync(records);
 
+            // Only newly created or updated parcels that were already
+            // explicitly marked physically ready at the depot are auto-processed.
+            var eligibleParcelIds = result.Items
+                .Where(x => x.Disposition is
+                    LBLocker.BusinessLogic.Contracts.ImportRecordDisposition.ParcelCreated or
+                    LBLocker.BusinessLogic.Contracts.ImportRecordDisposition.ParcelUpdated)
+                .Select(x => x.ExternalParcelId)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            var db = scope.ServiceProvider.GetRequiredService<LockerDbContext>();
+            var readyParcelIds = await db.Parcels
+                .Where(x => eligibleParcelIds.Contains(x.ExternalParcelId) &&
+                            x.Status == ParcelStatus.AcceptedAtDepot)
+                .Select(x => x.ExternalParcelId)
+                .ToListAsync();
+
+            var processed = 0;
+            var processingFailures = new List<string>();
+            var processor = scope.ServiceProvider.GetRequiredService<
+                LBLocker.Infrastructure.Processing.ParcelProcessingService>();
+            foreach (var readyParcelId in readyParcelIds)
+            {
+                try
+                {
+                    await processor.ProcessAsync(readyParcelId);
+                    processed++;
+                }
+                catch (Exception processingException)
+                {
+                    processingFailures.Add($"{readyParcelId}: {processingException.Message}");
+                }
+            }
+
             Console.WriteLine("\nIMPORT RESULT");
             Console.WriteLine(new string('-', 100));
             Console.WriteLine($"{"EventId",-24} {"ParcelId",-24} {"Timestamp",-22} Result");
@@ -396,6 +476,10 @@ internal sealed class ConsoleApplication(IServiceProvider services)
             Console.WriteLine($"Rows with no changes skipped: {result.NoChangesSkipped}");
             Console.WriteLine($"Duplicate events skipped:    {result.DuplicateEventsSkipped}");
             Console.WriteLine($"Incomplete rows rejected:    {result.IncompleteRowsSkipped}");
+            Console.WriteLine($"Auto-processed (depot-ready):  {processed}");
+            Console.WriteLine($"Auto-processing failures:     {processingFailures.Count}");
+            foreach (var failure in processingFailures)
+                WriteError($"  {failure}");
             await WriteImportReportAsync(result);
         }
         catch (Exception exception)
