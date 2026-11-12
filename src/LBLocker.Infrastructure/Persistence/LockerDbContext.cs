@@ -25,6 +25,7 @@ public sealed class LockerDbContext(DbContextOptions<LockerDbContext> options) :
             entity.Property(x => x.RecipientId).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Size).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
+            entity.Property(x => x.TargetLockerId).HasMaxLength(100);
             entity.Property(x => x.RegisteredAt).IsRequired();
 
             entity.HasMany(x => x.Allocations)
