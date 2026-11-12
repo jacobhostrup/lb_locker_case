@@ -463,8 +463,11 @@ internal sealed class ConsoleApplication(IServiceProvider services)
                     });
                     readyParcelIds.Add(parcel.ExternalParcelId);
                 }
-                else if (parcel.Status == ParcelStatus.AcceptedAtDepot)
+                else if (parcel.Status is ParcelStatus.AcceptedAtDepot or
+                         ParcelStatus.InTransit or ParcelStatus.AvailableForPickup)
                 {
+                    // Updated source snapshots may also resume a prior run:
+                    // e.g. retry capacity allocation or a failed notification channel.
                     readyParcelIds.Add(parcel.ExternalParcelId);
                 }
             }
