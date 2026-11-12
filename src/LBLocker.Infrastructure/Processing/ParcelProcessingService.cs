@@ -104,6 +104,11 @@ public sealed class ParcelProcessingService(
                     result.AllocatedAt,
                     result.ExpiresAt);
 
+                // Parcel -> Allocation uses a shadow FK. Attach the new
+                // allocation explicitly and set the FK before its credential.
+                db.Entry(allocation).Property<Guid>("ParcelId").CurrentValue = parcel.Id;
+                db.Allocations.Add(allocation);
+
                 db.AllocationCredentials.Add(new AllocationCredentialRecord
                 {
                     Id = Guid.NewGuid(),
