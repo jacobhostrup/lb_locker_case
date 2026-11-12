@@ -68,7 +68,7 @@ public sealed class ParcelImportServiceTests
     }
 
     [Fact]
-    public async Task ImportAsync_ShouldNotOverwriteExistingParcelWithLaterSnapshot()
+    public async Task ImportAsync_ShouldUpdateExistingParcelFromChangedSnapshot()
     {
         var repository = new InMemoryParcelRepository();
         var existing = Parcel.Register("PARCEL-1", "RECIPIENT-1", ParcelSize.Small, BaseTime);
@@ -78,10 +78,10 @@ public sealed class ParcelImportServiceTests
         var result = await service.ImportAsync(
             [Record("EVT-2", "PARCEL-1", BaseTime.AddHours(1), ParcelSize.Large)]);
 
-        Assert.Equal(1, result.ExistingParcelsSkipped);
-        Assert.Equal(ImportRecordDisposition.ExistingParcelSkipped, Assert.Single(result.Items).Disposition);
+        Assert.Equal(1, result.ParcelsUpdated);
+        Assert.Equal(ImportRecordDisposition.ParcelUpdated, Assert.Single(result.Items).Disposition);
         Assert.Single(repository.Parcels);
-        Assert.Equal(ParcelSize.Small, existing.Size);
+        Assert.Equal(ParcelSize.Large, existing.Size);
     }
 
     [Fact]
@@ -155,10 +155,18 @@ public sealed class ParcelImportServiceTests
                 string.IsNullOrWhiteSpace(record.RecipientId) || record.Size is null)
                 return Task.FromResult(ImportRecordDisposition.IncompleteRowRejected);
 
-            if (_parcels.Any(parcel => parcel.ExternalParcelId == record.ExternalParcelId))
-                return Task.FromResult(ImportRecordDisposition.ExistingParcelSkipped);
+            var existing = _parcels.SingleOrDefault(parcel => parcel.ExternalParcelId == record.ExternalParcelId);
+            if (existing is not null)
+            {
+                var changed = existing.Size != record.Size!.Value ||
+                    existing.TargetLockerId != record.TargetLockerId;
+                existing.ApplyImportedSnapshot(record.Size.Value, record.TargetLockerId);
+                return Task.FromResult(changed
+                    ? ImportRecordDisposition.ParcelUpdated
+                    : ImportRecordDisposition.NoChangesSkipped);
+            }
 
-            _parcels.Add(Parcel.Register(record.ExternalParcelId, record.RecipientId, record.Size.Value, record.Timestamp));
+            _parcels.Add(Parcel.Register(record.ExternalParcelId, record.RecipientId, record.Size.Value, record.Timestamp, record.TargetLockerId));
             Recipients.Add(record);
             return Task.FromResult(ImportRecordDisposition.ParcelCreated);
         }
