@@ -8,4 +8,7 @@
     <ProjectReference Include="..\LBLocker.Domain\LBLocker.Domain.csproj" />
     <ProjectReference Include="..\LBLocker.BusinessLogic\LBLocker.BusinessLogic.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
+  </ItemGroup>
 </Project>
