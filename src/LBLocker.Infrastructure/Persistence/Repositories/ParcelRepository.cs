@@ -53,7 +53,7 @@ public sealed class ParcelRepository(LockerDbContext dbContext) : IParcelReposit
         importedEvent.ProcessedAt = isValid ? now : null;
         importedEvent.FailureReason = isValid
             ? null
-            : "Missing parcel ID, recipient ID, recipient name, parcel size or contact channel.";
+            : "Missing parcel ID, recipient ID, recipient name or parcel size.";
         importedEvent.ParcelExternalId = string.IsNullOrWhiteSpace(record.ExternalParcelId)
             ? null
             : record.ExternalParcelId;
