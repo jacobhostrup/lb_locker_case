@@ -184,10 +184,18 @@ public sealed class ParcelProcessingService(
             x.Status == NotificationDispatchStatus.Accepted, cancellationToken);
         if (accepted) return;
 
+        var step = channel == ApiNotificationChannel.Sms ? ProcessStep.SendSms : ProcessStep.SendEmail;
+        var unresolvedAttempt = await db.ProcessAttempts.AnyAsync(x =>
+            x.ParcelId == parcel.Id &&
+            x.Step == step &&
+            x.Status == ProcessAttemptStatus.Started, cancellationToken);
+        if (unresolvedAttempt)
+            throw new InvalidOperationException(
+                $"A previous {channel} request has an unknown outcome. Check the Notification API before retrying to avoid sending a duplicate message.");
+
         var correlationId = Guid.NewGuid();
         var attempt = await StartAttemptAsync(parcel.Id, correlationId,
-            channel == ApiNotificationChannel.Sms ? ProcessStep.SendSms : ProcessStep.SendEmail,
-            cancellationToken);
+            step, cancellationToken);
         var attemptRecord = new NotificationDispatchRecord
         {
             Id = Guid.NewGuid(),
