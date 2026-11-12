@@ -194,10 +194,10 @@ public sealed class ParcelProcessingService(
     private async Task ReturnForInvalidDestinationAsync(
         Parcel parcel, string reason, CancellationToken cancellationToken)
     {
-        parcel.ReturnToSenderDueToInvalidDestination();
+        parcel.MarkReturnPendingDueToInvalidDestination();
         await db.SaveChangesAsync(cancellationToken);
-        await AddEventAsync(parcel.Id, "ReturnedToSenderInvalidDestination",
-            $"Parcel returned to sender. {reason} Responsibility for providing a valid recipient delivery destination rests with the sender.",
+        await AddEventAsync(parcel.Id, "ReturnToSenderRequiredInvalidDestination",
+            $"Parcel marked for return to sender. {reason} Responsibility for providing a valid recipient delivery destination rests with the sender.",
             null, cancellationToken);
     }
 
