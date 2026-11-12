@@ -12,7 +12,8 @@ public sealed class Parcel
         string externalParcelId,
         string recipientId,
         ParcelSize size,
-        DateTimeOffset registeredAt)
+        DateTimeOffset registeredAt,
+        string? targetLockerId)
     {
         if (id == Guid.Empty)
             throw new ArgumentException("Parcel ID cannot be empty.", nameof(id));
@@ -28,6 +29,7 @@ public sealed class Parcel
         RecipientId = recipientId;
         Size = size;
         RegisteredAt = registeredAt;
+        TargetLockerId = targetLockerId;
         Status = ParcelStatus.Registered;
     }
 
@@ -37,6 +39,7 @@ public sealed class Parcel
     public ParcelSize Size { get; private set; }
     public DateTimeOffset RegisteredAt { get; }
     public ParcelStatus Status { get; private set; }
+    public string? TargetLockerId { get; private set; }
 
     public IReadOnlyCollection<Allocation> Allocations => _allocations.AsReadOnly();
 
@@ -51,9 +54,10 @@ public sealed class Parcel
         string externalParcelId,
         string recipientId,
         ParcelSize size,
-        DateTimeOffset registeredAt)
+        DateTimeOffset registeredAt,
+        string? targetLockerId = null)
     {
-        return new Parcel(Guid.NewGuid(), externalParcelId, recipientId, size, registeredAt);
+        return new Parcel(Guid.NewGuid(), externalParcelId, recipientId, size, registeredAt, targetLockerId);
     }
 
     public void AcceptAtDepot()
@@ -130,6 +134,13 @@ public sealed class Parcel
             throw new InvalidOperationException("The locker allocation must be released before the parcel can be marked returned.");
 
         Status = ParcelStatus.ReturnedToSender;
+    }
+
+    public void ApplyImportedSnapshot(ParcelSize size, string? targetLockerId)
+    {
+        Size = size;
+        if (!string.IsNullOrWhiteSpace(targetLockerId))
+            TargetLockerId = targetLockerId;
     }
 
     public void ChangeSize(ParcelSize newSize)
