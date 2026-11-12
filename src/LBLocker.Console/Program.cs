@@ -102,33 +102,75 @@ internal sealed class ConsoleApplication(IServiceProvider services)
             .OrderBy(x => x.ExternalParcelId)
             .ToListAsync();
         var recipients = await db.Recipients.AsNoTracking().ToDictionaryAsync(x => x.ParcelId);
+        var credentials = await db.AllocationCredentials.AsNoTracking().ToListAsync();
+        var dispatches = await db.NotificationDispatches.AsNoTracking().ToListAsync();
         var events = await db.ParcelEvents.AsNoTracking().ToListAsync();
-        events = events.OrderByDescending(x => x.OccurredAt).ToList();
 
-        Console.WriteLine("\nPARCEL OVERVIEW");
-        Console.WriteLine(new string('=', 150));
-        Console.WriteLine($"{"Parcel ID",-18} {"Recipient",-24} {"Size",-8} {"Parcel status",-22} {"Requested locker",-20} {"Allocated locker / box",-28} {"Allocation",-14}");
-        Console.WriteLine(new string('-', 150));
+        Console.WriteLine("\\nPARCEL OVERVIEW - ONE ROW PER PARCEL");
+        Console.WriteLine(new string('=', 145));
+        Console.WriteLine($"{"Parcel ID",-18} {"Recipient",-20} {"PIN",-12} {"Compartment",-28} {"SMS",-12} {"E-mail",-12} {"Final status",-25}");
+        Console.WriteLine(new string('-', 145));
 
         foreach (var parcel in parcels)
         {
             recipients.TryGetValue(parcel.Id, out var recipient);
             var allocation = parcel.CurrentAllocation;
-            var requestedLocker = parcel.TargetLockerId ?? "Not provided";
-            var allocated = allocation is null
+            var pinCreated = allocation is not null &&
+                credentials.Any(x => x.AllocationId == allocation.Id);
+            var pinStatus = allocation is null ? "—" : pinCreated ? "Created" : "Missing";
+            var compartmentStatus = allocation is null
+                ? "Not booked"
+                : allocation.IsReleased ? "Released" : "Booked";
+            var allocationDispatches = allocation is null
+                ? []
+                : dispatches.Where(x => x.AllocationId == allocation.Id).ToList();
+            var smsStatus = FormatChannelStatus(allocationDispatches, NotificationChannel.Sms);
+            var emailStatus = FormatChannelStatus(allocationDispatches, NotificationChannel.Email);
+            var finalStatus = GetFinalStatus(parcel.Status, allocation, pinCreated, allocationDispatches);
+            var compartment = allocation is null
                 ? "—"
                 : $"{allocation.LockerId} / {allocation.CompartmentId}";
-            var allocationStatus = allocation?.Status.ToString() ?? "Not allocated";
 
-            Console.WriteLine($"{Clip(parcel.ExternalParcelId, 18),-18} {Clip(recipient?.Name ?? "Unknown", 24),-24} {parcel.Size,-8} {parcel.Status,-22} {Clip(requestedLocker, 20),-20} {Clip(allocated, 28),-28} {allocationStatus,-14}");
+            Console.WriteLine($"{Clip(parcel.ExternalParcelId, 18),-18} {Clip(recipient?.Name ?? "Unknown", 20),-20} {pinStatus,-12} {Clip(compartmentStatus + ": " + compartment, 28),-28} {smsStatus,-12} {emailStatus,-12} {finalStatus,-25}");
         }
 
-        Console.WriteLine(new string('-', 150));
+        Console.WriteLine(new string('-', 145));
         Console.WriteLine($"Total parcels: {parcels.Count}");
-        Console.WriteLine("\nEnter a Parcel ID to inspect its history, or press Enter to return:");
+        Console.WriteLine("\\nEnter a Parcel ID to inspect details and exact failures, or press Enter to return:");
         var parcelId = Console.ReadLine()?.Trim();
         if (!string.IsNullOrWhiteSpace(parcelId))
             await ShowParcelDetailsAsync(parcelId);
+    }
+
+    private static string FormatChannelStatus(
+        IReadOnlyCollection<NotificationDispatchRecord> dispatches,
+        NotificationChannel channel)
+    {
+        var attempts = dispatches.Where(x => x.Channel == channel).ToList();
+        if (attempts.Count == 0) return "Not sent";
+        if (attempts.Any(x => x.Status == NotificationDispatchStatus.Accepted)) return "Accepted";
+        if (attempts.Any(x => x.Status == NotificationDispatchStatus.Failed)) return "Failed";
+        return "Rejected";
+    }
+
+    private static string GetFinalStatus(
+        ParcelStatus parcelStatus,
+        Allocation? allocation,
+        bool pinCreated,
+        IReadOnlyCollection<NotificationDispatchRecord> dispatches)
+    {
+        if (parcelStatus == ParcelStatus.PickedUp) return "Picked up";
+        if (parcelStatus == ParcelStatus.ReturnedToSender) return "Returned to sender";
+        if (parcelStatus == ParcelStatus.ReturnPending) return "Return pending";
+        if (parcelStatus == ParcelStatus.AvailableForPickup) return "Ready for pickup";
+        if (parcelStatus == ParcelStatus.Registered && allocation is null) return "Registered";
+        if (allocation is null) return "Waiting for locker";
+        if (!pinCreated) return "Process failed - PIN missing";
+        if (dispatches.Count > 0 && !dispatches.Any(x => x.Status == NotificationDispatchStatus.Accepted))
+            return "Process failed - notification";
+        if (dispatches.Any(x => x.Status == NotificationDispatchStatus.Accepted))
+            return "Processing - not pickup-ready";
+        return "Compartment booked";
     }
 
     private async Task ShowParcelDetailsAsync(string externalParcelId)
