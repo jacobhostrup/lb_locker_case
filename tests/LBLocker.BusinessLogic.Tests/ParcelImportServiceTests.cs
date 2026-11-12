@@ -172,6 +172,18 @@ public sealed class ParcelImportServiceTests
                 parcel => parcel.ExternalParcelId == externalParcelId));
         }
 
+        public Task RecordEventAsync(
+            Guid parcelId,
+            string eventType,
+            DateTimeOffset occurredAt,
+            string? description = null,
+            Guid? correlationId = null,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.CompletedTask;
+        }
+
         public Task AddAsync(
             Parcel parcel,
             CancellationToken cancellationToken = default)
