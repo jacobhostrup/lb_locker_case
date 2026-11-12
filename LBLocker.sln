@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LBLocker.Domain.Tests", "te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LBLocker.BusinessLogic.Tests", "tests\LBLocker.BusinessLogic.Tests\LBLocker.BusinessLogic.Tests.csproj", "{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1005}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LBLocker.Infrastructure.Tests", "tests\LBLocker.Infrastructure.Tests\LBLocker.Infrastructure.Tests.csproj", "{D5A4D1D4-5F36-4C6B-A3B1-1C4D0E4A1006}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
