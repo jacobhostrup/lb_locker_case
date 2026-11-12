@@ -268,7 +268,17 @@ internal sealed class ConsoleApplication(IServiceProvider services)
         {
             Console.WriteLine("\nNOTIFICATION ATTEMPTS");
             foreach (var dispatch in dispatches)
-                Console.WriteLine($"  {dispatch.AttemptedAt:O} | {dispatch.Channel} | {dispatch.Status} | {dispatch.ExternalDispatchId ?? dispatch.ErrorCode ?? "No external result"}");
+                {
+                    Console.WriteLine($"  {dispatch.AttemptedAt:O} | {dispatch.Channel} | {dispatch.Status} | {dispatch.ExternalDispatchId ?? "No external ID"}");
+                    if (!string.IsNullOrWhiteSpace(dispatch.ErrorCode))
+                        Console.WriteLine($"    Error code: {dispatch.ErrorCode}");
+                    if (dispatch.HttpStatusCode.HasValue)
+                        Console.WriteLine($"    HTTP: {dispatch.HttpStatusCode}");
+                    if (!string.IsNullOrWhiteSpace(dispatch.ErrorMessage))
+                        Console.WriteLine($"    Error: {dispatch.ErrorMessage}");
+                    if (!string.IsNullOrWhiteSpace(dispatch.ResponseBody))
+                        Console.WriteLine($"    API response: {dispatch.ResponseBody}");
+                }
         }
 
         Console.WriteLine("\nPROCESS ATTEMPTS / DIAGNOSTICS");
