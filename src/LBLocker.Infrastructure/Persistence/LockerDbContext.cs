@@ -112,6 +112,9 @@ public sealed class LockerDbContext(DbContextOptions<LockerDbContext> options) :
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.ExternalDispatchId).HasMaxLength(150);
             entity.Property(x => x.ErrorCode).HasMaxLength(100);
+            entity.Property(x => x.HttpStatusCode);
+            entity.Property(x => x.ErrorMessage).HasMaxLength(2000);
+            entity.Property(x => x.ResponseBody).HasMaxLength(8000);
             entity.HasIndex(x => new { x.AllocationId, x.AttemptedAt });
             entity.HasIndex(x => x.ExternalDispatchId).IsUnique()
                 .HasFilter("\"ExternalDispatchId\" IS NOT NULL");
