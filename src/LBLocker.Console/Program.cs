@@ -55,6 +55,28 @@ static async Task UpgradeSqliteSchemaAsync(LockerDbContext db)
         if (!hasTargetLockerId)
             await db.Database.ExecuteSqlRawAsync(
                 "ALTER TABLE Parcels ADD COLUMN TargetLockerId TEXT NULL;");
+
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS ProcessAttempts (
+                Id TEXT NOT NULL CONSTRAINT PK_ProcessAttempts PRIMARY KEY,
+                ParcelId TEXT NOT NULL,
+                CorrelationId TEXT NOT NULL,
+                Step TEXT NOT NULL,
+                AttemptNumber INTEGER NOT NULL,
+                Status TEXT NOT NULL,
+                OccurredAt TEXT NOT NULL,
+                HttpStatusCode INTEGER NULL,
+                ErrorCode TEXT NULL,
+                ErrorMessage TEXT NULL,
+                ResponseBody TEXT NULL,
+                CONSTRAINT FK_ProcessAttempts_Parcels_ParcelId
+                    FOREIGN KEY (ParcelId) REFERENCES Parcels (Id) ON DELETE RESTRICT
+            );
+            CREATE INDEX IF NOT EXISTS IX_ProcessAttempts_ParcelId_OccurredAt
+                ON ProcessAttempts (ParcelId, OccurredAt);
+            CREATE INDEX IF NOT EXISTS IX_ProcessAttempts_ParcelId_Step_AttemptNumber
+                ON ProcessAttempts (ParcelId, Step, AttemptNumber);
+            """);
     }
     finally
     {
